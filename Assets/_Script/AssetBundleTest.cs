@@ -4,16 +4,8 @@ using System.Collections.Generic;
 
 public class AssetBundleTest : MonoBehaviour {
 
-	private static string localRoot =
-#if UNITY_EDITOR
-		"file://" + Application.streamingAssetsPath;
-#elif UNITY_ANDROID
-		Application.streamingAssetsPath;
-#else
-		"file://" + Application.streamingAssetsPath;
-#endif
-
-	private static string bundleExt = "assetbundle";
+	private string localRoot = "";
+	private string bundleExt = "assetbundle";
 
 	delegate IEnumerator AssetBundleLoadDelegate(AssetBundle assetBundle);
 	List<GameObject> objectList = new List<GameObject>();
@@ -26,6 +18,15 @@ public class AssetBundleTest : MonoBehaviour {
 
 
 	void Awake () {
+		localRoot =
+#if UNITY_EDITOR
+		"file://" + Application.streamingAssetsPath;
+#elif UNITY_ANDROID
+		Application.streamingAssetsPath;
+#else
+		"file://" + Application.streamingAssetsPath;
+#endif
+
 		Screen.SetResolution(600, 960, true);
 	}
 
