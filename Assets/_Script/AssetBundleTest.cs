@@ -1,25 +1,29 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 public class AssetBundleTest : MonoBehaviour {
 
-	private string localRoot = "";
-	private string bundleExt = "assetbundle";
-
-	void Start () {
-		localRoot = 
+	private static string localRoot =
 #if UNITY_EDITOR
 		"file://" + Application.streamingAssetsPath;
-#else
+#elif UNITY_ANDROID
 		Application.streamingAssetsPath;
+#else
+		"file://" + Application.streamingAssetsPath;
 #endif
 
-		Screen.SetResolution(600, 960, true);
-	}
+	private static string bundleExt = "assetbundle";
 
-	void Update()
-	{
-		;
+	delegate IEnumerator AssetBundleLoadDelegate(AssetBundle assetBundle);
+	List<GameObject> objectList = new List<GameObject>();
+
+	int totalTask = 0;
+	int loadTask = 0;
+	float asyncTaskStartTime = 0;
+
+	void Awake () {
+		Screen.SetResolution(600, 960, true);
 	}
 
 	void OnGUI ()
@@ -33,7 +37,20 @@ public class AssetBundleTest : MonoBehaviour {
 
 		if (GUI.Button(new Rect(0, autoY, 200, buttonH), "LoadAssetBundle"))
 		{
-			StartCoroutine(LoadAssetBundle("test"));
+			OnAsyncTaskStart();
+			StartCoroutine(LoadAssetBundle("test", loadCallBack1));
+			StartCoroutine(LoadAssetBundle("player", loadCallBack2));
+		} autoY += buttonH;
+
+		//if (GUI.Button(new Rect(0, autoY, 200, buttonH), "LoadAssetBundle2"))
+		//{
+		//	StartCoroutine(LoadAssetBundle("player", loadCallBack2));
+		//} autoY += buttonH;
+
+		if (GUI.Button(new Rect(0, autoY, 200, buttonH), "Clear"))
+		{
+			ClearAll();
+			Resources.UnloadUnusedAssets();
 		} autoY += buttonH;
 	}
 
@@ -42,18 +59,20 @@ public class AssetBundleTest : MonoBehaviour {
 		float startTime = Time.realtimeSinceStartup;
 
 		Object preAtomBall = Resources.Load("pre_AtomBall");
-		Instantiate(preAtomBall);
+		objectList.Add(Instantiate(preAtomBall) as GameObject);
 
 		Object preSpikeBall = Resources.Load("pre_SpikeBall");
-		Instantiate(preSpikeBall);
+		objectList.Add(Instantiate(preSpikeBall) as GameObject);
+
+		Object prePlayer = Resources.Load("pre_Player");
+		objectList.Add(Instantiate(prePlayer) as GameObject);
 
 		float endTime = Time.realtimeSinceStartup;
 		Debug.Log(string.Format("LoadResources Cost: {0}", endTime - startTime));
 	}
 
-	IEnumerator LoadAssetBundle(string package)
+	IEnumerator LoadAssetBundle(string package, AssetBundleLoadDelegate loadCallBack)
 	{
-		float startTime = Time.realtimeSinceStartup;
 		while (!Caching.ready)
 			yield return null;
 
@@ -67,19 +86,59 @@ public class AssetBundleTest : MonoBehaviour {
 
 			AssetBundle assetBundle = www.assetBundle;
 
-			Object preAtomBall = assetBundle.Load("pre_AtomBall");
-			Instantiate(preAtomBall);
-
-			Object preSpikeBall = assetBundle.Load("pre_SpikeBall");
-			Instantiate(preSpikeBall);
+			yield return StartCoroutine(loadCallBack(assetBundle));
 
 			assetBundle.Unload(false);
 
 			www.Dispose();
 		}
-		float endTime = Time.realtimeSinceStartup;
-		Debug.Log(string.Format("LoadAssetBundle Cost: {0}", endTime - startTime));
 		yield return null;
 	}
 
+	IEnumerator loadCallBack1(AssetBundle assetBundle)
+	{
+		Object preAtomBall = assetBundle.Load("pre_AtomBall");
+		objectList.Add(Instantiate(preAtomBall) as GameObject);
+		OnLoadDone();
+		yield return null;
+
+		Object preSpikeBall = assetBundle.Load("pre_SpikeBall");
+		objectList.Add(Instantiate(preSpikeBall) as GameObject);
+		OnLoadDone();
+		yield return null;
+	}
+
+	IEnumerator loadCallBack2(AssetBundle assetBundle)
+	{
+		Object prePlayer = assetBundle.Load("pre_Player");
+		objectList.Add(Instantiate(prePlayer) as GameObject);
+		OnLoadDone();
+		yield return null;
+	}
+
+	void OnAsyncTaskStart()
+	{
+		totalTask = 3;
+		loadTask = 0;
+		asyncTaskStartTime = Time.realtimeSinceStartup;
+	}
+
+	void OnLoadDone()
+	{
+		loadTask += 1;
+		if (loadTask >= totalTask)
+		{
+			float endTime = Time.realtimeSinceStartup;
+			Debug.Log(string.Format("LoadAssetBundle Cost: {0}", endTime - asyncTaskStartTime));
+		}
+	}
+
+	void ClearAll()
+	{
+		foreach (GameObject obj in objectList)
+		{
+			Destroy(obj);
+		}
+		objectList.Clear();
+	}
 }
