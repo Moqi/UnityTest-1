@@ -22,6 +22,9 @@ public class AssetBundleTest : MonoBehaviour {
 	int loadTask = 0;
 	float asyncTaskStartTime = 0;
 
+	Dictionary<string, AssetBundle> assetBundleDict = new Dictionary<string, AssetBundle>();
+
+
 	void Awake () {
 		Screen.SetResolution(600, 960, true);
 	}
@@ -38,19 +41,32 @@ public class AssetBundleTest : MonoBehaviour {
 		if (GUI.Button(new Rect(0, autoY, 200, buttonH), "LoadAssetBundle"))
 		{
 			OnAsyncTaskStart();
-			StartCoroutine(LoadAssetBundle("test", loadCallBack1));
-			StartCoroutine(LoadAssetBundle("player", loadCallBack2));
+			StartCoroutine(LoadABResource("test", loadCallBack1));
+			StartCoroutine(LoadABResource("player", loadCallBack2));
 		} autoY += buttonH;
 
-		//if (GUI.Button(new Rect(0, autoY, 200, buttonH), "LoadAssetBundle2"))
-		//{
-		//	StartCoroutine(LoadAssetBundle("player", loadCallBack2));
-		//} autoY += buttonH;
-
-		if (GUI.Button(new Rect(0, autoY, 200, buttonH), "Clear"))
+		if (GUI.Button(new Rect(0, autoY, 200, buttonH), "LoadAssetBundleWithBuffer"))
 		{
-			ClearAll();
+			OnAsyncTaskStart();
+			StartCoroutine(LoadABResourceWithBuffer("test", loadCallBack1));
+			StartCoroutine(LoadABResourceWithBuffer("player", loadCallBack2));
+		} autoY += buttonH;
+
+		if (GUI.Button(new Rect(0, autoY, 200, buttonH), "ClearAssetBundleBuffer"))
+		{
+			ResetAssetBundleBuffer();
+		} autoY += buttonH;
+
+		if (GUI.Button(new Rect(0, autoY, 200, buttonH), "ClearObjects"))
+		{
+			ClearObjects();
+		} autoY += buttonH;
+
+		if (GUI.Button(new Rect(0, autoY, 200, buttonH), "Reset"))
+		{
+			ClearObjects();
 			Resources.UnloadUnusedAssets();
+			ResetAssetBundleBuffer();
 		} autoY += buttonH;
 	}
 
@@ -71,7 +87,7 @@ public class AssetBundleTest : MonoBehaviour {
 		Debug.Log(string.Format("LoadResources Cost: {0}", endTime - startTime));
 	}
 
-	IEnumerator LoadAssetBundle(string package, AssetBundleLoadDelegate loadCallBack)
+	IEnumerator LoadABResource(string package, AssetBundleLoadDelegate loadCallBack)
 	{
 		while (!Caching.ready)
 			yield return null;
@@ -133,7 +149,50 @@ public class AssetBundleTest : MonoBehaviour {
 		}
 	}
 
-	void ClearAll()
+	IEnumerator LoadAssetBundle(string package)
+	{
+		while (!Caching.ready)
+			yield return null;
+
+		string loadPath = string.Format("{0}/{1}.{2}",
+			localRoot, package, bundleExt);
+		Debug.Log(loadPath);
+
+		using (WWW www = WWW.LoadFromCacheOrDownload(loadPath, 1))
+		{
+			yield return www;
+
+			AssetBundle assetBundle = www.assetBundle;
+
+			assetBundleDict[package] = assetBundle;
+
+			www.Dispose();
+		}
+		yield return null;
+	}
+
+	IEnumerator LoadABResourceWithBuffer(string package, AssetBundleLoadDelegate loadCallBack)
+	{
+		if (!assetBundleDict.ContainsKey(package))
+			yield return StartCoroutine(LoadAssetBundle(package));
+
+		AssetBundle assetBundle = null;
+		assetBundleDict.TryGetValue(package, out assetBundle);
+		if (assetBundle == null) yield break;
+
+		yield return StartCoroutine(loadCallBack(assetBundle));
+	}
+
+	void ResetAssetBundleBuffer()
+	{
+		foreach (KeyValuePair<string, AssetBundle> itor in assetBundleDict)
+		{
+			(itor.Value).Unload(false);
+		}
+		assetBundleDict.Clear();
+	}
+
+	void ClearObjects()
 	{
 		foreach (GameObject obj in objectList)
 		{
