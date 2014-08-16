@@ -4,9 +4,6 @@ using System.Collections.Generic;
 
 public class AssetBundleTest : MonoBehaviour {
 
-	private string localRoot = "";
-	private string bundleExt = "assetbundle";
-
 	List<GameObject> objectList = new List<GameObject>();
 
 	int totalTask = 0;
